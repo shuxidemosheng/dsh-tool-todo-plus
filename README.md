@@ -48,33 +48,39 @@
 
 ## 安装
 
-### 方式一：桌面端 git 直装（推荐）
+### 方式一：npm 包名安装（最简）
 
-在 **Git Bash** 中执行（先完全退出 DeepSeek Harness，含系统托盘）：
+包已发布到 npm：[`dsh-tool-todo-plus`](https://www.npmjs.com/package/dsh-tool-todo-plus)——安装时只需包名，无需 git 地址，且可指定版本。
+
+CLI profile（有 `dsh` 命令的环境）：
+
+```bash
+dsh plugin --profile <你的profile名> add dsh-tool-todo-plus
+```
+
+桌面端（Git Bash，先完全退出应用，含系统托盘）：
+
+```bash
+ELECTRON_RUN_AS_NODE=1 "/d/DeepSeek Harness/DeepSeek Harness.exe" --expose-internals "D:/DeepSeek Harness/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" plugin --profile desktop add dsh-tool-todo-plus
+```
+
+安装后验证版本：`grep '"version"' ~/.dsh/profiles/desktop/node_modules/dsh-tool-todo-plus/package.json`
+
+> 注意：包名安装走 npm registry（国内镜像站通常已同步，偶有几分钟延迟）；急用最新版可走方式二。
+
+### 方式二：git 直装（始终最新 main）
+
+Git Bash（桌面端；先完全退出应用）：
 
 ```bash
 ELECTRON_RUN_AS_NODE=1 "/d/DeepSeek Harness/DeepSeek Harness.exe" --expose-internals "D:/DeepSeek Harness/resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/cli.js" plugin --profile desktop add https://github.com/shuxidemosheng/dsh-tool-todo-plus.git
 ```
 
-然后启动应用。安装后可验证版本：
-
-```bash
-grep '"version"' ~/.dsh/profiles/desktop/node_modules/dsh-tool-todo-plus/package.json
-```
-
-**更新到新版**：重跑同一条安装命令即可（会从 GitHub 拉取 main 分支最新版），装完重启应用。
-
-### 方式二：CLI profile
-
-有 `dsh` 命令行的环境（CLI 安装的 dsh）：
-
-```bash
-dsh plugin --profile <你的profile名> add https://github.com/shuxidemosheng/dsh-tool-todo-plus.git
-```
+CLI profile：`dsh plugin --profile <你的profile名> add https://github.com/shuxidemosheng/dsh-tool-todo-plus.git`
 
 ### 方式三：桌面端插件页
 
-打开 dsh 桌面端 → 侧边栏「插件」→ 添加插件 → 粘贴仓库地址 `https://github.com/shuxidemosheng/dsh-tool-todo-plus` 或选择本地 tgz → 安装（失败会自动回滚）。同样需要先完全退出应用。
+打开 dsh 桌面端 → 侧边栏「插件」→ 添加插件 → 粘贴仓库地址或包名 → 安装（失败会自动回滚）。同样需要先完全退出应用。
 
 ### 方式四：源码构建
 
@@ -85,6 +91,8 @@ npm pack          # 产出可安装的 tgz
 ```
 
 要求：Node.js ≥ 24。
+
+**更新到新版**：npm 渠道重跑方式一的命令（pnpm 会拉取最新发布版）；git 渠道重跑方式二（拉取 main 分支最新提交）。装完重启应用。
 
 ## 配置
 

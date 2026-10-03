@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
+    "outDir": "lib",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmitOnError": true
+  },
+  "include": ["src"]
+}

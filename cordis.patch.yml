@@ -1,0 +1,17 @@
+# dsh-tool-todo-plus 的 bundle patch：挂载增强版任务清单工具。
+#
+# 默认与官方 todo_write 共存（toolName: 'todo_write_plus'，零冲突）：
+# 桌面端等使用 agent preset 的部署里，preset 自己声明的官方 tool-todo 行
+# 不受 profile patch 控制、无法可靠禁用，共存是唯一无风险的启用方式。
+#
+# CLI profile 里如果已按 id 禁用了官方 tool-todo 行，可以把 toolName
+# 改回 'todo_write' 独占原名。
+#
+# 名字万一仍被占用（例如装了两份本插件），本插件会记日志后优雅让位，
+# 不会让 entry 激活失败。
+- insert:
+    - id: tool-todo-plus
+      name: dsh-tool-todo-plus
+      config:
+        allowParallelInProgress: false
+        toolName: todo_write_plus

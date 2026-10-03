@@ -120,8 +120,8 @@ function capsuleSummary(items: readonly TodoItem[]): { icon: string; text: strin
 }
 
 const smallButtonStyle: CSSProperties = {
-  fontSize: 11, padding: '2px 8px', borderRadius: 6,
-  border: '1px solid rgba(128,128,128,0.45)', background: 'transparent',
+  fontSize: 11, padding: '2px 8px', borderRadius: 'var(--dsw-radius-sm, 8px)',
+  border: '1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.28))', background: 'transparent',
   color: 'inherit', cursor: 'pointer', opacity: 0.8,
 }
 
@@ -147,8 +147,8 @@ function TodoHeaderAction(_props: unknown): ReactElement {
       onClick={() => setPanelOpen(!panelOpen)}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 4,
-        fontSize: 12, padding: '3px 9px', borderRadius: 6,
-        border: '1px solid rgba(128,128,128,0.45)', background: 'transparent',
+        fontSize: 12, padding: '3px 9px', borderRadius: 'var(--dsw-radius-sm, 8px)',
+        border: '1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.28))', background: 'transparent',
         color: 'inherit', cursor: 'pointer', opacity: 0.85,
       }}
     >
@@ -212,7 +212,7 @@ function TodoCard(): ReactElement {
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             maxWidth: '100%', fontSize: 12, padding: '5px 12px', borderRadius: 999,
-            border: '1px solid rgba(128,128,128,0.45)', background: 'transparent',
+            border: '1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.28))', background: 'transparent',
             color: 'inherit', cursor: 'pointer',
           }}
         >
@@ -280,11 +280,18 @@ function TodoOverlay(): ReactElement | null {
     <div style={{
       position: 'absolute', top: 68, right: 20, width,
       maxHeight: 'calc(100vh - 140px)', overflowY: 'auto',
-      background: 'var(--color-menu-bg, rgba(30,30,34,0.97))',
-      border: '1px solid rgba(128,128,128,0.35)', borderRadius: 10,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
-      color: 'var(--color-foreground, #e6e6e6)',
+      // 浮层材质复刻 dsh 原生菜单（实测其悬浮面板配方）：
+      // 半透明表面 + blur(40px) 毛玻璃；描边不是 border，而是 boxShadow 里的
+      // 0.5px 发丝环（暗色主题为白 16%）+ 两层 4%~5% 超柔投影；圆角取
+      // --dsw-radius-lg(16px)。全部走宿主 token，亮暗主题自动跟随。
+      background: 'var(--dsw-menu-surface-fill, rgba(67, 69, 74, 0.45))',
+      backdropFilter: 'blur(40px) saturate(1.5)',
+      WebkitBackdropFilter: 'blur(40px) saturate(1.5)',
+      boxShadow: '0 0 0 0.5px var(--dsw-alias-border-l3, rgba(255,255,255,0.16)), 0 3px 8px rgba(0,0,0,0.04), 0 0 20px rgba(0,0,0,0.05)',
+      borderRadius: 'var(--dsw-radius-lg, 16px)',
+      color: 'var(--dsw-alias-label-primary, #e6e6e6)',
       pointerEvents: 'auto',
+      transition: 'width 240ms ease',
     }}>
       <TodoCard />
     </div>

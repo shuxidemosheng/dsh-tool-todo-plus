@@ -1,7 +1,7 @@
 {
   "name": "dsh-tool-todo-plus",
   "description": "todo_write tool with priority tags, markdown checklist rendering and a floating task panel — drop-in enhanced fork of @deepseek-ai/dsh-tool-todo",
-  "version": "0.4.3",
+  "version": "0.5.2",
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",
@@ -33,15 +33,13 @@
       "platform": "web",
       "inject": [
         "client-ui-slots",
-        "client-ui-conversation",
-        "client-ui-sidebar-right"
+        "client-ui-conversation"
       ]
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && esbuild src/index.ts --bundle --format=esm --platform=node --target=node24 --outfile=lib/index.js --legal-comments=none && node scripts/disable-eval.mjs && esbuild src/client.tsx --bundle --format=cjs --platform=browser --target=chrome120 --outfile=lib/client.js --external:react --external:react/jsx-runtime --legal-comments=none --banner:js=\"window.__ModuleLoader__.load({ id: \\\"dsh-tool-todo-plus\\\", factory: (require) => { var module = { exports: {} }; var exports = module.exports;\" --footer:js=\"return module.exports; } });\""
+    "build": "tsc -p tsconfig.json && esbuild src/index.ts --bundle --format=esm --platform=node --target=node24 --outfile=lib/index.js --legal-comments=none && node scripts/disable-eval.mjs && esbuild src/client.tsx --bundle --format=cjs --platform=browser --target=chrome120 --outfile=lib/client.js --external:react --external:react/jsx-runtime --external:react-dom --legal-comments=none --banner:js=\"window.__ModuleLoader__.load({ id: \\\"dsh-tool-todo-plus\\\", factory: (require) => { var module = { exports: {} }; var exports = module.exports;\" --footer:js=\"return module.exports; } });\""
   },
-  "dependencies": {},
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
     "@deepseek-ai/dsh-agent": "0.2.0-rc.2",
@@ -58,6 +56,7 @@
     "@deepseek-ai/dsh-session-projection": "0.2.0-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
     "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "esbuild": "^0.28.2",
     "react": "^19.3.0",
     "typescript": "^5.9.3",

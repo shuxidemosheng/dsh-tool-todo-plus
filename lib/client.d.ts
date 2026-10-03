@@ -1,49 +1,34 @@
 /**
- * dsh-tool-todo-plus 客户端半：浮动"任务清单"小窗（ZCode 计划面板风格）。
+ * dsh-tool-todo-plus 客户端半：自绘浮动"任务清单"卡片（ZCode 计划面板风格）。
  *
- * 架构（全部走公开槽位机制，不碰客户端内部）：
+ * 架构（刻意不使用右侧栏 tab 系统——openTab 会强制展开整个右侧栏，无法只开浮窗）：
  *
  *   conversation.input.dock 槽位（会话域，运行时提供 useProjection）
  *     └─ TodoBridge（隐形组件，渲染 null）：订阅 'todos' 投影 → 写入模块级 store
- *        └─ 每次清单写入（非空）都 openTab——幂等：面板开着就聚焦，关了就重开
+ *        └─ 清单内容变化时置 open=true
  *
- *   sidebar.right.pane.tab 槽位（keyed，运行时平铺注入 useTabInfo）
- *     └─ TodoSidebarBody：useSyncExternalStore 读 store → 渲染清单
- *        └─ 挂载时自举 float（真实 tab 记录 id 只有这里拿得到）
- *        └─ 收起为胶囊 / 展开状态：dock(panelId) → float(tabId, 新 rect) 重设浮窗尺寸
+ *   独立 React 根（createRoot 挂到 body 下的容器 div，与槽位渲染树完全分离）
+ *     └─ TodoOverlay：position:fixed 浮动卡片，useSyncExternalStore 读 store
+ *        ├─ 展开态：完整清单（状态点/划线/优先级徽章/进度计数）
+ *        └─ 胶囊态：当前进行中项摘要（ZCode ConversationStatusPanel 的优先级链）
  *
- * 为什么需要桥：两个槽位的运行时注入物不同——dock 有投影 hook，tab 没有。
+ *   conversation.session.header.actions 槽位
+ *     └─ TodoHeaderAction 按钮：开关浮动卡片（面板关闭后的手动入口）
  *
- * 构建约束：产物是懒 CJS 工厂（平台模块表解析 react），react 必须 external；
- * 其余一律 inline styles，避免任何平台表之外的模块请求。
+ * 构建约束：产物是懒 CJS 工厂（平台模块表解析 react/react-dom），两者必须
+ * external；其余一律 inline styles，避免任何平台表之外的模块请求。
  *
  * @module dsh-tool-todo-plus/client
  */
-interface SidebarRightTabDef {
-    id: string;
-    kind: string;
-    priority?: string;
-    title?: (address?: string) => string;
-    keepMounted?: boolean;
-    patterns?: string[];
-    /**
-     * "新标签页"引导页上的入口框。**省略则本类型完全不出现在引导页**
-     * （官方契约原文："Entry boxes for the guide page. Omit to stay off it."）——
-     * 面板被关闭后这就是用户手动重开的入口之一。
-     */
-    guide?: readonly {
-        id: string;
-        order: number;
-        title: () => string;
-        description?: () => string;
-    }[];
+import type { ReactNode } from 'react';
+declare module 'react-dom' {
+    function createRoot(container: Element | DocumentFragment): {
+        render(node: ReactNode): void;
+        unmount(): void;
+    };
 }
 interface ClientCtx {
-    sidebarRightTabs: {
-        register(def: SidebarRightTabDef): () => void;
-    };
     slots: {
-        /** 延迟注册：槽位就绪后回调一次，回调里做 slots.register */
         inject(slot: string, register: () => void): void;
         register(def: {
             name: string;
@@ -51,18 +36,6 @@ interface ClientCtx {
             key?: string;
             order?: number;
         }, component: unknown): () => void;
-    };
-    sidebarRight: {
-        openTab(kind: string, options?: Record<string, unknown>): unknown;
-        /** 把 tab 移到浮动宿主（ZCode 式小浮窗）；rect 缺省时按级联位置放置 */
-        float(tabId: string, rect?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        }): void;
-        /** 把浮动 pane 收回停靠宿主 */
-        dock(paneId: string): void;
     };
     logger: {
         warn(...args: unknown[]): void;

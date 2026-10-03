@@ -5,7 +5,8 @@
  *
  *   conversation.input.dock 槽位（会话域，运行时提供 useProjection）
  *     └─ TodoBridge（隐形组件，渲染 null）：订阅 'todos' 投影 → 写入模块级 store
- *        └─ 清单内容变化时置 open=true
+ *        ├─ 挂载边界 = 会话界面边界：浮窗只在会话页显示
+ *        └─ 会话边界后短窗口内的投影同步视为历史注水（不弹开），之后的才是实时写入
  *
  *   独立 React 根（createRoot 挂到 body 下的容器 div，与槽位渲染树完全分离）
  *     └─ TodoOverlay：position:fixed 浮动卡片，useSyncExternalStore 读 store

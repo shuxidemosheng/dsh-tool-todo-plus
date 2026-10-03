@@ -5,7 +5,8 @@
  *
  *   conversation.input.dock 槽位（会话域，运行时提供 useProjection）
  *     └─ TodoBridge（隐形组件，渲染 null）：订阅 'todos' 投影 → 写入模块级 store
- *        └─ 清单内容变化时置 open=true
+ *        ├─ 挂载边界 = 会话界面边界：浮窗只在会话页显示
+ *        └─ 会话边界后短窗口内的投影同步视为历史注水（不弹开），之后的才是实时写入
  *
  *   独立 React 根（createRoot 挂到 body 下的容器 div，与槽位渲染树完全分离）
  *     └─ TodoOverlay：position:fixed 浮动卡片，useSyncExternalStore 读 store
@@ -21,7 +22,7 @@
  * @module dsh-tool-todo-plus/client
  */
 
-import { useSyncExternalStore, useEffect, useState } from 'react'
+import { useSyncExternalStore, useEffect, useRef } from 'react'
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import { createRoot } from 'react-dom'
 import type { TodoItem } from './types.js'
@@ -50,26 +51,30 @@ const BRIDGE_ID = 'todo-plus-bridge'
 // —— 会话标题栏按钮的注册条目 id ——
 const HEADER_ACTION_ID = 'todo-plus-header-action'
 
-// —— 模块级共享状态：清单 + 面板开关 + 形态 ——
-// 纪律：这三个变量是 useSyncExternalStore 的快照源，只在 emit() 前后成对更新；
+// —— 模块级共享状态：清单 + 面板开关 + 形态 + 会话视图在位标记 ——
+// 纪律：这些变量是 useSyncExternalStore 的快照源，只在 emit() 前后成对更新；
 // "内容没变就提前 return"必须发生在赋值之前，否则 React 会在下次渲染时发现
 // 快照变了却没收到通知（getSnapshot 缓存被破坏）。
 let todos: readonly TodoItem[] = []
 let panelOpen = false
 let collapsed = false
+// 桥组件（TodoBridge）只挂载在会话视图里：它挂载 ⇔ 当前处于会话界面。
+// 浮窗据此限定显示范围，不跟到插件页等其他界面。
+let conversationActive = false
 const listeners = new Set<() => void>()
 
 function emit(): void {
   for (const listener of listeners) listener()
 }
 
-function setTodos(next: readonly TodoItem[] | null | undefined): void {
+function setTodos(next: readonly TodoItem[] | null | undefined, opts?: { autoOpen?: boolean }): void {
   const value = next ?? []
   const changed = value.length !== todos.length || value.some((t, i) => t !== todos[i])
   if (!changed) return
   todos = value
-  // 面板联动规则：每次清单内容变化都确保面板打开（关了就重开）；空清单不强制打开。
-  if (value.length > 0) panelOpen = true
+  // 面板联动规则：模型的实时清单写入确保面板打开（关了就重开）；空清单不打开。
+  // 投影"注水"（重进会话/切换会话时的首次历史同步）autoOpen=false——用户关了就保持关着。
+  if (value.length > 0 && (opts?.autoOpen ?? true)) panelOpen = true
   emit()
 }
 
@@ -128,12 +133,40 @@ const smallButtonStyle: CSSProperties = {
 /**
  * 隐形桥组件：订阅 'todos' 投影 → 写入模块级 store。
  * 渲染 null，在 dock 通栏里不可见（官方 TodoPanel 空清单时也返回 null，同机制）。
+ *
+ * 桥的挂载边界有两个用途：
+ *   1. 会话范围：挂载 ⇔ 处于会话界面 → conversationActive 控制浮窗只在会话里显示；
+ *   2. 注水判别：会话边界（挂载或 sessionId 变化）后的短时间内，投影会把会话里
+ *      已有的清单分多次同步进来（实测不止一次发射），这些一律视为"历史注水"，
+ *      只写数据不自动弹开；边界窗口之后的投影变化才是模型实时写入，才触发弹出。
+ *
+ * 已知局限：若单个会话的历史恢复耗时超过窗口期，尾部仍会被当成实时写入而弹开
+ * （代价：用户手动关一次）；换来的确定性是窗口期后的实时写入总能正常弹出。
  */
+const HYDRATION_WINDOW_MS = 2000
+
 function TodoBridge(props: {
   useProjection?: (key: 'todos') => readonly TodoItem[] | null
+  sessionId?: string | number
 }): ReactElement | null {
   const value = props.useProjection?.('todos') ?? null
-  useEffect(() => { setTodos(value) }, [value])
+  const boundaryAt = useRef(0)
+  useEffect(() => {
+    // 会话边界：挂载和 sessionId 变化都会重置注水窗口
+    boundaryAt.current = performance.now()
+  }, [props.sessionId])
+  useEffect(() => {
+    conversationActive = true
+    emit()
+    return () => {
+      conversationActive = false
+      emit()
+    }
+  }, [])
+  useEffect(() => {
+    const live = performance.now() - boundaryAt.current > HYDRATION_WINDOW_MS
+    setTodos(value, { autoOpen: live })
+  }, [value])
   return null
 }
 
@@ -272,9 +305,11 @@ function TodoCard(): ReactElement {
 /** 浮动卡片容器：fixed 定位，pointer-events 只落在卡片上，不挡页面其余部分。 */
 function TodoOverlay(): ReactElement | null {
   const open = useSyncExternalStore(subscribe, () => panelOpen, () => panelOpen)
+  // 只在会话界面显示：桥组件卸载（去了插件页等）时 conversationActive=false，浮窗隐藏
+  const active = useSyncExternalStore(subscribe, () => conversationActive, () => conversationActive)
   // 订阅 collapsed：宽度随形态即时切换（240 胶囊 / 380 展开）；清单本体由 TodoCard 自行订阅
   const collapsedNow = useSyncExternalStore(subscribe, () => collapsed, () => collapsed)
-  if (!open) return null
+  if (!open || !active) return null
   const width = collapsedNow ? 240 : 380
   return (
     <div style={{

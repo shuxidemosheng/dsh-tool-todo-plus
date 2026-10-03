@@ -1,7 +1,7 @@
 {
   "name": "dsh-tool-todo-plus",
   "description": "todo_write tool with priority tags, markdown checklist rendering and a floating task panel — drop-in enhanced fork of @deepseek-ai/dsh-tool-todo",
-  "version": "0.5.6",
+  "version": "0.5.8",
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",

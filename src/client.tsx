@@ -22,7 +22,7 @@
  * @module dsh-tool-todo-plus/client
  */
 
-import { useSyncExternalStore, useEffect, useRef } from 'react'
+import { useSyncExternalStore, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactElement, ReactNode } from 'react'
 import { createRoot } from 'react-dom'
 import type { TodoItem } from './types.js'
@@ -50,6 +50,8 @@ interface ClientCtx {
 const BRIDGE_ID = 'todo-plus-bridge'
 // —— 会话标题栏按钮的注册条目 id ——
 const HEADER_ACTION_ID = 'todo-plus-header-action'
+// —— 桥组件渲染的零尺寸锚点元素 id（浮窗水平定位参照）——
+const ANCHOR_ID = 'dsh-todo-plus-anchor'
 
 // —— 模块级共享状态：清单 + 面板开关 + 形态 + 会话视图在位标记 ——
 // 纪律：这些变量是 useSyncExternalStore 的快照源，只在 emit() 前后成对更新；
@@ -132,9 +134,10 @@ const smallButtonStyle: CSSProperties = {
 
 /**
  * 隐形桥组件：订阅 'todos' 投影 → 写入模块级 store。
- * 渲染 null，在 dock 通栏里不可见（官方 TodoPanel 空清单时也返回 null，同机制）。
+ * 渲染一个零尺寸标记（视觉上不可见，官方 TodoPanel 空清单时也返回 null，同机制），
+ * 兼作浮窗的水平定位锚点。
  *
- * 桥的挂载边界有两个用途：
+ * 桥的挂载边界有三个用途：
  *   1. 会话范围：挂载 ⇔ 处于会话界面 → conversationActive 控制浮窗只在会话里显示；
  *   2. 注水判别：会话边界（挂载或 sessionId 变化）后的短时间内，投影会把会话里
  *      已有的清单分多次同步进来（实测不止一次发射），这些一律视为"历史注水"，
@@ -148,7 +151,7 @@ const HYDRATION_WINDOW_MS = 2000
 function TodoBridge(props: {
   useProjection?: (key: 'todos') => readonly TodoItem[] | null
   sessionId?: string | number
-}): ReactElement | null {
+}): ReactElement {
   const value = props.useProjection?.('todos') ?? null
   const boundaryAt = useRef(0)
   useEffect(() => {
@@ -167,7 +170,9 @@ function TodoBridge(props: {
     const live = performance.now() - boundaryAt.current > HYDRATION_WINDOW_MS
     setTodos(value, { autoOpen: live })
   }, [value])
-  return null
+  // 零尺寸标记：它挂在会话输入区（dock 槽位）里，浮窗用它做水平锚点——
+  // 面板贴着对话内容列的右缘，而不是窗口右缘（窗口宽时避免落到内容区外的空白带）。
+  return <span id={ANCHOR_ID} aria-hidden style={{ position: 'absolute', width: 0, height: 0 }} />
 }
 
 /** 会话标题栏的"任务清单"按钮：开关浮动卡片（面板被关闭后的手动入口）。 */
@@ -302,6 +307,21 @@ function TodoCard(): ReactElement {
   )
 }
 
+/**
+ * 浮窗水平锚点的右缘 x 坐标：从零尺寸标记向上找第一个有实质宽度（≥500px）的
+ * 祖先——即对话内容列（composer stack）。不能直接用标记自身：它在 dock 容器的
+ * 左缘（零尺寸），right=left。找不到（理论上仅会话视图外）返回 NaN。
+ */
+function anchorRightEdge(): number {
+  let el: HTMLElement | null = document.getElementById(ANCHOR_ID)
+  while (el && el !== document.body) {
+    const rect = el.getBoundingClientRect()
+    if (rect.width >= 500) return rect.right
+    el = el.parentElement
+  }
+  return NaN
+}
+
 /** 浮动卡片容器：fixed 定位，pointer-events 只落在卡片上，不挡页面其余部分。 */
 function TodoOverlay(): ReactElement | null {
   const open = useSyncExternalStore(subscribe, () => panelOpen, () => panelOpen)
@@ -309,11 +329,27 @@ function TodoOverlay(): ReactElement | null {
   const active = useSyncExternalStore(subscribe, () => conversationActive, () => conversationActive)
   // 订阅 collapsed：宽度随形态即时切换（240 胶囊 / 380 展开）；清单本体由 TodoCard 自行订阅
   const collapsedNow = useSyncExternalStore(subscribe, () => collapsed, () => collapsed)
+  // 窗口尺寸变化时锚点位置会变，强制重算一次
+  const [, resizeTick] = useState(0)
+  useEffect(() => {
+    const onResize = () => resizeTick(n => n + 1)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   if (!open || !active) return null
   const width = collapsedNow ? 240 : 380
+  // 水平锚定对话内容列的右缘：面板贴着对话列（同 ZCode 的面板在窗格内的观感），
+  // 而不是窗口右缘（窗口宽时会落到内容区外的空白带）。锚点缺失时回退窗口右缘 20px。
+  const anchorRight = anchorRightEdge()
+  const anchored = Number.isFinite(anchorRight)
+  const left = anchored
+    ? Math.max(12, Math.min(anchorRight - width, window.innerWidth - width - 12))
+    : NaN
   return (
     <div style={{
-      position: 'absolute', top: 68, right: 20, width,
+      position: 'absolute', top: 68, width,
+      left: anchored ? left : undefined,
+      right: anchored ? undefined : 20,
       maxHeight: 'calc(100vh - 140px)', overflowY: 'auto',
       // 浮层材质复刻 dsh 原生菜单（实测其悬浮面板配方）：
       // 半透明表面 + blur(40px) 毛玻璃；描边不是 border，而是 boxShadow 里的

@@ -4,6 +4,16 @@
 
 仓库：`https://github.com/shuxidemosheng/dsh-tool-todo-plus`
 
+## 界面预览
+
+**浮动任务面板（展开态）**——模型写入清单时自动弹出，实时跟随状态流转；毛玻璃表面与原生主题融合：
+
+![浮动任务面板（展开态）](docs/screenshots/panel-expanded.png)
+
+**胶囊态**——收起为 ZCode 计划面板同款的内容优先级链（进行中项 `→`，截图中为"编写 README 使用说明"），点击展开：
+
+<p align="center"><img src="docs/screenshots/panel-capsule.png" width="420" alt="胶囊态"></p>
+
 ## 它是什么
 
 一个"模型侧工具 + 用户侧面板"的组合：

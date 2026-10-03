@@ -51,10 +51,12 @@ const BRIDGE_ID = 'todo-plus-bridge'
 const HEADER_ACTION_ID = 'todo-plus-header-action'
 
 // —— 模块级共享状态：清单 + 面板开关 + 形态 ——
+// 纪律：这三个变量是 useSyncExternalStore 的快照源，只在 emit() 前后成对更新；
+// "内容没变就提前 return"必须发生在赋值之前，否则 React 会在下次渲染时发现
+// 快照变了却没收到通知（getSnapshot 缓存被破坏）。
 let todos: readonly TodoItem[] = []
 let panelOpen = false
 let collapsed = false
-let lastSignature = ''
 const listeners = new Set<() => void>()
 
 function emit(): void {
@@ -64,8 +66,8 @@ function emit(): void {
 function setTodos(next: readonly TodoItem[] | null | undefined): void {
   const value = next ?? []
   const changed = value.length !== todos.length || value.some((t, i) => t !== todos[i])
-  todos = value
   if (!changed) return
+  todos = value
   // 面板联动规则：每次清单内容变化都确保面板打开（关了就重开）；空清单不强制打开。
   if (value.length > 0) panelOpen = true
   emit()
@@ -159,23 +161,25 @@ function TodoHeaderAction(_props: unknown): ReactElement {
 /** 浮动卡片本体：展开态 = 清单卡片；胶囊态 = 当前任务摘要药丸。 */
 function TodoCard(): ReactElement {
   const items = useSyncExternalStore(subscribe, () => todos, () => todos)
+  // collapsed 也是快照源：不订阅的话，收起/展开按钮点了 emit 也不会触发本组件重渲染
+  const collapsedNow = useSyncExternalStore(subscribe, () => collapsed, () => collapsed)
   const completed = items.filter(t => t.status === 'completed').length
   const inProgress = items.filter(t => t.status === 'in_progress').length
 
   const header = (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
-      fontSize: 12, fontWeight: 600, opacity: 0.85, marginBottom: collapsed ? 0 : 10,
+      fontSize: 12, fontWeight: 600, opacity: 0.85, marginBottom: collapsedNow ? 0 : 10,
     }}>
       <span>任务清单</span>
-      {!collapsed && (
+      {!collapsedNow && (
         <span style={{ fontWeight: 400, opacity: 0.7 }}>
           {completed}/{items.length}{inProgress > 0 ? ` · ${inProgress} 进行中` : ''}
         </span>
       )}
       <span style={{ flex: 1 }} />
-      <button type="button" onClick={() => setCollapsed(!collapsed)} title={collapsed ? '展开状态' : '收起为胶囊'} style={smallButtonStyle}>
-        {collapsed ? '展开状态' : '收起为胶囊'}
+      <button type="button" onClick={() => setCollapsed(!collapsedNow)} title={collapsedNow ? '展开状态' : '收起为胶囊'} style={smallButtonStyle}>
+        {collapsedNow ? '展开状态' : '收起为胶囊'}
       </button>
       <button type="button" onClick={() => setPanelOpen(false)} title="关闭" aria-label="关闭任务清单面板" style={smallButtonStyle}>
         ✕
@@ -194,7 +198,7 @@ function TodoCard(): ReactElement {
     )
   }
 
-  if (collapsed) {
+  if (collapsedNow) {
     // 胶囊：ZCode 优先级链——进行中项 → 最近完成项 → 待办计数
     const summary = capsuleSummary(items)
     return (
@@ -268,9 +272,10 @@ function TodoCard(): ReactElement {
 /** 浮动卡片容器：fixed 定位，pointer-events 只落在卡片上，不挡页面其余部分。 */
 function TodoOverlay(): ReactElement | null {
   const open = useSyncExternalStore(subscribe, () => panelOpen, () => panelOpen)
-  const items = useSyncExternalStore(subscribe, () => todos, () => todos)
+  // 订阅 collapsed：宽度随形态即时切换（240 胶囊 / 380 展开）；清单本体由 TodoCard 自行订阅
+  const collapsedNow = useSyncExternalStore(subscribe, () => collapsed, () => collapsed)
   if (!open) return null
-  const width = collapsed ? 240 : 380
+  const width = collapsedNow ? 240 : 380
   return (
     <div style={{
       position: 'absolute', top: 68, right: 20, width,

@@ -63,21 +63,54 @@ let collapsed = false
 // 桥组件（TodoBridge）只挂载在会话视图里：它挂载 ⇔ 当前处于会话界面。
 // 浮窗据此限定显示范围，不跟到插件页等其他界面。
 let conversationActive = false
+// 轮次边界保留标记：turn/start 把投影重置为 null 时，面板不清空，而是淡化
+// 显示上一轮清单（配"上一轮"标签），等新清单写入再替换——消除"发消息后
+// 清单闪空"。显式写空清单（[]）仍然正常清空：投影里 null 与 [] 可区分。
+let listStale = false
+// 当前动作（A）：模型此刻正在执行的工具（"pwsh · 运行测试"）或泛化执行指示
+// （"执行中…"），两次清单写入之间由聊天 store 实时驱动；空闲为空串。
+let currentAction = ''
 const listeners = new Set<() => void>()
 
 function emit(): void {
   for (const listener of listeners) listener()
 }
 
-function setTodos(next: readonly TodoItem[] | null | undefined, opts?: { autoOpen?: boolean }): void {
+function setCurrentAction(action: string): void {
+  if (currentAction === action) return
+  currentAction = action
+  emit()
+}
+
+function setTodos(next: readonly TodoItem[] | null | undefined, opts?: { autoOpen?: boolean; prev?: readonly TodoItem[] | null }): void {
   const value = next ?? []
+  // 轮次边界判定：投影值为 null（turn/start 重置）且上一帧有清单且当前显示有清单。
+  // prev 用的是上一帧"原始投影值"（bridge 维护），连续两轮没写清单时第二帧 prev
+  // 已是 null，保留会被正常清空——旧计划在连续无维护时不无限滞留。
+  if (next === null && (opts?.prev?.length ?? 0) > 0 && todos.length > 0) {
+    if (!listStale) {
+      listStale = true
+      emit()
+    }
+    return
+  }
   const changed = value.length !== todos.length || value.some((t, i) => t !== todos[i])
-  if (!changed) return
+  if (!changed && !listStale) return
   todos = value
+  listStale = false
   // 面板联动规则：模型的实时清单写入确保面板打开（关了就重开）；空清单不打开。
   // 投影"注水"（重进会话/切换会话时的首次历史同步）autoOpen=false——用户关了就保持关着。
   if (value.length > 0 && (opts?.autoOpen ?? true)) panelOpen = true
   emit()
+}
+
+/** 换会话：清空保留标记与残留清单，避免上一个会话的清单串显到新会话。 */
+function resetSessionScope(): void {
+  listStale = false
+  if (todos.length > 0) {
+    todos = []
+    emit()
+  }
 }
 
 function setPanelOpen(open: boolean): void {
@@ -148,15 +181,68 @@ const smallButtonStyle: CSSProperties = {
  */
 const HYDRATION_WINDOW_MS = 2000
 
+/**
+ * 从聊天 store 推导"当前动作"：最后一个已发出但还没有对应 tool-result 的工具调用。
+ * 会话节点流里 tool-result 带 callId（已完成），assistant 节点的 blocks 里带挂起的
+ * 调用（call.callId / 或块自身带 callId）。两者对账，没有 result 的就是正在执行的。
+ * 返回"工具名 · 参数摘要"字符串（原始值，可安全用作 useSyncExternalStore 快照）；
+ * 无正在执行的动作时返回空串。只扫描尾部 ~80 个节点，开销可忽略。
+ */
+function deriveCurrentAction(s: any): string {
+  const nodes = s?.legacy?.nodes ?? s?.nodes
+  if (!nodes) return ''
+  const vals: any[] = Object.values(nodes)
+  const done = new Set<string>()
+  let pending: { name?: string; argsRaw?: string; callId?: string } | null = null
+  for (let i = vals.length - 1; i >= 0 && i >= vals.length - 80; i--) {
+    const n = vals[i]
+    if (n?.kind === 'tool-result' && n.callId !== undefined) {
+      done.add(String(n.callId))
+      if (pending) break
+    } else if (n?.kind === 'assistant' && Array.isArray(n?.blocks)) {
+      for (let j = n.blocks.length - 1; j >= 0; j--) {
+        const b = n.blocks[j]
+        const call = b?.call ?? (b?.callId ? b : null)
+        if (call?.name && call.callId !== undefined) {
+          if (!done.has(String(call.callId))) {
+            pending = call
+            break
+          }
+        }
+      }
+      if (pending) break
+    }
+  }
+  if (!pending?.name) return ''
+  const name = String(pending.name)
+  let detail = ''
+  try {
+    const a = JSON.parse(pending.argsRaw ?? '{}')
+    detail = String(a.description ?? a.command ?? a.path ?? a.file_path ?? a.pattern ?? a.query ?? '')
+      .replace(/\s+/g, ' ')
+      .slice(0, 44)
+  } catch { /* argsRaw 不是 JSON 时保持空摘要 */ }
+  return detail ? `${name} · ${detail}` : name
+}
+
 function TodoBridge(props: {
   useProjection?: (key: 'todos') => readonly TodoItem[] | null
+  useSession?: (selector: (s: any) => any) => any
+  useChat?: (selector: (s: any) => any) => any
   sessionId?: string | number
 }): ReactElement {
   const value = props.useProjection?.('todos') ?? null
   const boundaryAt = useRef(0)
+  // 上一帧原始投影值：null（轮次边界）与 []（显式清空）的判别依据
+  const prevValue = useRef<readonly TodoItem[] | null>(null)
+  // —— 当前动作（A）：模型已发出调用但还没有 tool-result 的那个工具，即"此刻在干什么"。
+  // 选择器返回字符串（原始值比较安全），两次清单写入之间也能给出实时反馈。
+  const running = props.useSession?.((s: any) => !!s?.running)
+  const chatAction = props.useChat?.((s: any) => deriveCurrentAction(s)) ?? ''
   useEffect(() => {
-    // 会话边界：挂载和 sessionId 变化都会重置注水窗口
+    // 会话边界：挂载和 sessionId 变化都会重置注水窗口，并清掉跨会话的残留显示
     boundaryAt.current = performance.now()
+    resetSessionScope()
   }, [props.sessionId])
   useEffect(() => {
     conversationActive = true
@@ -168,8 +254,12 @@ function TodoBridge(props: {
   }, [])
   useEffect(() => {
     const live = performance.now() - boundaryAt.current > HYDRATION_WINDOW_MS
-    setTodos(value, { autoOpen: live })
+    setTodos(value, { autoOpen: live, prev: prevValue.current })
+    prevValue.current = value
   }, [value])
+  useEffect(() => {
+    setCurrentAction(chatAction || (running ? '执行中…' : ''))
+  }, [chatAction, running])
   // 零尺寸标记：它挂在会话输入区（dock 槽位）里，浮窗用它做水平锚点——
   // 面板贴着对话内容列的右缘，而不是窗口右缘（窗口宽时避免落到内容区外的空白带）。
   return <span id={ANCHOR_ID} aria-hidden style={{ position: 'absolute', width: 0, height: 0 }} />
@@ -201,8 +291,18 @@ function TodoCard(): ReactElement {
   const items = useSyncExternalStore(subscribe, () => todos, () => todos)
   // collapsed 也是快照源：不订阅的话，收起/展开按钮点了 emit 也不会触发本组件重渲染
   const collapsedNow = useSyncExternalStore(subscribe, () => collapsed, () => collapsed)
+  const stale = useSyncExternalStore(subscribe, () => listStale, () => listStale)
+  // 当前动作（A）：模型此刻在执行的工具，两次清单写入之间的实时反馈
+  const action = useSyncExternalStore(subscribe, () => currentAction, () => currentAction)
   const completed = items.filter(t => t.status === 'completed').length
   const inProgress = items.filter(t => t.status === 'in_progress').length
+
+  const actionLine = action ? (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, opacity: 0.6, minHeight: 16 }}>
+      <span aria-hidden>⚙</span>
+      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{action}</span>
+    </div>
+  ) : null
 
   const header = (
     <div style={{
@@ -210,6 +310,14 @@ function TodoCard(): ReactElement {
       fontSize: 12, fontWeight: 600, opacity: 0.85, marginBottom: collapsedNow ? 0 : 10,
     }}>
       <span>任务清单</span>
+      {stale && (
+        <span title="新一轮开始，等待模型更新清单" style={{
+          fontWeight: 400, fontSize: 10, padding: '1px 6px', borderRadius: 999,
+          border: '1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.28))', opacity: 0.7,
+        }}>
+          上一轮
+        </span>
+      )}
       {!collapsedNow && (
         <span style={{ fontWeight: 400, opacity: 0.7 }}>
           {completed}/{items.length}{inProgress > 0 ? ` · ${inProgress} 进行中` : ''}
@@ -229,7 +337,8 @@ function TodoCard(): ReactElement {
     return (
       <div style={{ padding: '10px 14px 12px' }}>
         {header}
-        <div style={{ fontSize: 12, opacity: 0.6 }}>
+        {actionLine}
+        <div style={{ fontSize: 12, opacity: 0.6, marginTop: actionLine ? 6 : 0 }}>
           暂无任务。模型调用 todo_write_plus 后，清单会实时出现在这里。
         </div>
       </div>
@@ -242,6 +351,7 @@ function TodoCard(): ReactElement {
     return (
       <div style={{ padding: '8px 10px' }}>
         {header}
+        {actionLine}
         <button
           type="button"
           onClick={() => setCollapsed(false)}
@@ -251,7 +361,7 @@ function TodoCard(): ReactElement {
             display: 'inline-flex', alignItems: 'center', gap: 6,
             maxWidth: '100%', fontSize: 12, padding: '5px 12px', borderRadius: 999,
             border: '1px solid var(--dsw-alias-border-l2, rgba(128,128,128,0.28))', background: 'transparent',
-            color: 'inherit', cursor: 'pointer',
+            color: 'inherit', cursor: 'pointer', opacity: stale ? 0.6 : undefined,
           }}
         >
           {summary === null ? '任务清单' : (
@@ -272,7 +382,8 @@ function TodoCard(): ReactElement {
   return (
     <div style={{ padding: '10px 14px 14px', fontFamily: 'inherit' }}>
       {header}
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+      {actionLine}
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8, opacity: stale ? 0.6 : undefined }}>
         {items.map(todo => (
           <li key={todo.content} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, lineHeight: 1.5 }}>
             <span aria-hidden style={{

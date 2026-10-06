@@ -27,7 +27,7 @@
 
 - **优先级标签**：`TodoItem` 增加可选 `priority`（`high` / `medium` / `low`），对齐 ZCode 的 TodoWrite
 - **完整清单渲染**：工具结果向模型返回完整 markdown 清单（官方版只有一行计数）
-- **行为纪律**：工具 description 内置"何时用/不用、整表替换、单 `in_progress`、完成即刻标记"的完整指引，并在存在官方工具时声明优先使用本插件
+- **行为纪律**：工具 description 内置"何时用/不用、整表替换、单 `in_progress`、完成即刻标记、**切换即写**（步骤切换时在同一次调用里完成两个状态变更）"的完整指引，并在存在官方工具时声明优先使用本插件
 - **参数双保险**：参数 schema（enum + `additionalProperties: false`）之外再做运行时校验——非空、去重、默认至多一个 `in_progress`（多标即拒绝，模型会收到纠正信息重试）
 
 ### 浮动任务面板（用户侧）

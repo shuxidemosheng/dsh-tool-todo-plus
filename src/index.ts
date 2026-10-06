@@ -95,7 +95,9 @@ const DESCRIPTION_SINGLE =
   + 'keep them `pending` and prefix their content with `(parallel)` — do not mark several `in_progress`. '
 
 const DESCRIPTION_TAIL =
-  'Mark each todo `completed` as soon as it is done — never batch-complete at the end.'
+  'Mark each todo `completed` as soon as it is done — never batch-complete at the end. '
+  + 'Whenever the active step changes, write the update immediately: mark the finished step `completed` '
+  + 'and the next one `in_progress` in the same call.'
 
 /** 组装 description：唯一随配置变化的是 in_progress 条款（并行策略只影响这一句）。 */
 function describe(allowParallel: boolean): string {

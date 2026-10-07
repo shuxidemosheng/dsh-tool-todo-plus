@@ -20,6 +20,10 @@
 
 ![浮动任务面板（展开态）](docs/screenshots/panel-expanded.png)
 
+**执行中**——两次清单写入之间，⚙ 行实时显示模型此刻执行的工具（截图中对应正在进行的第 2 步）：
+
+<p align="center"><img src="docs/screenshots/panel-executing.png" alt="执行中：当前动作行"></p>
+
 **胶囊态**——收起为 ZCode 计划面板同款的内容优先级链（进行中项 `→`，截图中为"编写 README 使用说明"），点击展开：
 
 <p align="center"><img src="docs/screenshots/panel-capsule.png" width="420" alt="胶囊态"></p>

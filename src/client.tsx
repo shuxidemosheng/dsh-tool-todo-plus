@@ -23,7 +23,7 @@
  */
 
 import { useSyncExternalStore, useEffect, useRef, useState } from 'react'
-import type { CSSProperties, ReactElement, ReactNode } from 'react'
+import type { CSSProperties, ReactElement, ReactNode, PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react'
 import { createRoot } from 'react-dom'
 import type { TodoItem } from './types.js'
 
@@ -70,7 +70,45 @@ let listStale = false
 // 当前动作（A）：模型此刻正在执行的工具（"pwsh · 运行测试"）或泛化执行指示
 // （"执行中…"），两次清单写入之间由聊天 store 实时驱动；空闲为空串。
 let currentAction = ''
+// 面板位置（自由模式）：null = 默认锚定（对话列右缘 + 顶部 68px）。用户拖动后
+// 写入 {x,y} 并持久化 localStorage（仅坐标数字，无个人数据），重进会话/重启保持。
+const POS_STORAGE_KEY = 'dsh-todo-plus.panelPos'
+const PANEL_WIDTH_COLLAPSED = 240
+const PANEL_WIDTH_EXPANDED = 380
+let panelPos: { x: number; y: number } | null = loadPanelPos()
 const listeners = new Set<() => void>()
+
+function loadPanelPos(): { x: number; y: number } | null {
+  try {
+    const raw = localStorage.getItem(POS_STORAGE_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw)
+    if (typeof p?.x === 'number' && typeof p?.y === 'number') return { x: p.x, y: p.y }
+  } catch { /* 隐私模式/存储损坏：回退默认锚定定位 */ }
+  return null
+}
+
+function savePanelPos(): void {
+  try {
+    if (panelPos) localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(panelPos))
+    else localStorage.removeItem(POS_STORAGE_KEY)
+  } catch { /* 写入失败（配额/隐私模式）：位置仅本次会话生效 */ }
+}
+
+/** 把面板左上角坐标钳制在视口内（顶部至少留 60px 可见，四边至少 8px 边距）。 */
+function clampPos(x: number, y: number, width: number): { x: number; y: number } {
+  const maxX = Math.max(8, window.innerWidth - width - 8)
+  const maxY = Math.max(8, window.innerHeight - 60)
+  return { x: Math.min(Math.max(8, x), maxX), y: Math.min(Math.max(8, y), maxY) }
+}
+
+function setPanelPos(pos: { x: number; y: number } | null, persist = false): void {
+  const changed = (pos === null) !== (panelPos === null)
+    || (pos !== null && panelPos !== null && (pos.x !== panelPos.x || pos.y !== panelPos.y))
+  panelPos = pos
+  if (persist) savePanelPos()
+  if (changed) emit()
+}
 
 function emit(): void {
   for (const listener of listeners) listener()
@@ -287,7 +325,7 @@ function TodoHeaderAction(_props: unknown): ReactElement {
 }
 
 /** 浮动卡片本体：展开态 = 清单卡片；胶囊态 = 当前任务摘要药丸。 */
-function TodoCard(): ReactElement {
+function TodoCard(props: { panelPos: { x: number; y: number } }): ReactElement {
   const items = useSyncExternalStore(subscribe, () => todos, () => todos)
   // collapsed 也是快照源：不订阅的话，收起/展开按钮点了 emit 也不会触发本组件重渲染
   const collapsedNow = useSyncExternalStore(subscribe, () => collapsed, () => collapsed)
@@ -297,6 +335,29 @@ function TodoCard(): ReactElement {
   const completed = items.filter(t => t.status === 'completed').length
   const inProgress = items.filter(t => t.status === 'in_progress').length
 
+  // —— 头部拖动（pointer capture，鼠标/触屏通吃）：按钮不参与，双击头部复位 ——
+  const widthNow = collapsedNow ? PANEL_WIDTH_COLLAPSED : PANEL_WIDTH_EXPANDED
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
+  const onHeaderPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: props.panelPos.x, origY: props.panelPos.y }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onHeaderPointerMove = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    const d = dragRef.current
+    if (!d) return
+    setPanelPos(clampPos(d.origX + e.clientX - d.startX, d.origY + e.clientY - d.startY, widthNow))
+  }
+  const onHeaderPointerUp = (): void => {
+    if (!dragRef.current) return
+    dragRef.current = null
+    savePanelPos()
+  }
+  const onHeaderDoubleClick = (e: ReactMouseEvent<HTMLDivElement>): void => {
+    if ((e.target as HTMLElement).closest('button')) return
+    setPanelPos(null, true)
+  }
+
   const actionLine = action ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, opacity: 0.6, minHeight: 16 }}>
       <span aria-hidden>⚙</span>
@@ -305,10 +366,18 @@ function TodoCard(): ReactElement {
   ) : null
 
   const header = (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      fontSize: 12, fontWeight: 600, opacity: 0.85, marginBottom: collapsedNow ? 0 : 10,
-    }}>
+    <div
+      onPointerDown={onHeaderPointerDown}
+      onPointerMove={onHeaderPointerMove}
+      onPointerUp={onHeaderPointerUp}
+      onPointerCancel={onHeaderPointerUp}
+      onDoubleClick={onHeaderDoubleClick}
+      title="拖动移动面板；双击复位到默认位置"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        fontSize: 12, fontWeight: 600, opacity: 0.85, marginBottom: collapsedNow ? 0 : 10,
+        cursor: 'grab', touchAction: 'none', userSelect: 'none',
+      }}>
       <span>任务清单</span>
       {stale && (
         <span title="新一轮开始，等待模型更新清单" style={{
@@ -448,19 +517,25 @@ function TodoOverlay(): ReactElement | null {
     return () => window.removeEventListener('resize', onResize)
   }, [])
   if (!open || !active) return null
-  const width = collapsedNow ? 240 : 380
-  // 水平锚定对话内容列的右缘：面板贴着对话列（同 ZCode 的面板在窗格内的观感），
-  // 而不是窗口右缘（窗口宽时会落到内容区外的空白带）。锚点缺失时回退窗口右缘 20px。
-  const anchorRight = anchorRightEdge()
-  const anchored = Number.isFinite(anchorRight)
-  const left = anchored
+  const width = collapsedNow ? PANEL_WIDTH_COLLAPSED : PANEL_WIDTH_EXPANDED
+  // 定位两种模式：自由模式（用户拖过，用记忆坐标并钳制进视口）优先；默认模式
+  // 锚定对话内容列右缘（同 ZCode 面板在窗格内的观感；锚点缺失时回退窗口右缘 20px）。
+  const freePos = panelPos ? clampPos(panelPos.x, panelPos.y, width) : null
+  const anchorRight = freePos ? NaN : anchorRightEdge()
+  const anchored = !freePos && Number.isFinite(anchorRight)
+  const anchoredLeft = anchored
     ? Math.max(12, Math.min(anchorRight - width, window.innerWidth - width - 12))
     : NaN
+  // 实际渲染位置（也是拖动的起始基准）：自由模式 = 钳制后坐标；锚定 = 计算结果；回退 = 窗口右缘
+  const effPos = freePos
+    ? { x: freePos.x, y: freePos.y }
+    : anchored
+      ? { x: anchoredLeft, y: 68 }
+      : { x: window.innerWidth - width - 20, y: 68 }
   return (
     <div style={{
-      position: 'absolute', top: 68, width,
-      left: anchored ? left : undefined,
-      right: anchored ? undefined : 20,
+      position: 'absolute', top: effPos.y, width,
+      left: effPos.x,
       maxHeight: 'calc(100vh - 140px)', overflowY: 'auto',
       // 浮层材质复刻 dsh 原生菜单（实测其悬浮面板配方）：
       // 半透明表面 + blur(40px) 毛玻璃；描边不是 border，而是 boxShadow 里的
@@ -475,7 +550,7 @@ function TodoOverlay(): ReactElement | null {
       pointerEvents: 'auto',
       transition: 'width 240ms ease',
     }}>
-      <TodoCard />
+      <TodoCard panelPos={effPos} />
     </div>
   )
 }

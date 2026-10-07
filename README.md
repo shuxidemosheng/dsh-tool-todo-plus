@@ -127,7 +127,7 @@ ELECTRON_RUN_AS_NODE=1 "/d/DeepSeek Harness/DeepSeek Harness.exe" --expose-inter
 
 安装后验证版本：`grep '"version"' ~/.dsh/profiles/desktop/node_modules/dsh-tool-todo-plus/package.json`
 
-> 注意：包名安装走 npm registry（国内镜像站通常已同步，偶有几分钟延迟）；急用最新版可走[方式二](#install-git)。
+> 注意：包名安装走 npm registry（国内镜像站通常已同步，偶有几分钟延迟）；新版本发布后的数天冷却期内，裸包名会解析到旧版——请带版本号安装（见[常见问题](#常见问题)）；急用最新版也可走[方式二](#install-git)。
 
 <a id="install-git"></a>
 
@@ -184,6 +184,15 @@ npm 渠道重跑[方式一](#install-npm)的命令（pnpm 会拉取最新发布�
   - 封印：`sha256:032632304af5a1efb42a55a2f2113a46cb48bcc1fa5d0e5aee913992476bcd6b`
 
 ## 常见问题
+
+**安装 / 升级后版本没变（或装到旧版）？**
+
+dsh 内置 `minimumReleaseAge` 供应链策略：刚发布的版本要经过数天冷却期才会被"裸包名"解析安装（防供应链投毒），冷却期内会装到上一个"足够老"的版本，而插件页卡片显示的仍是 registry 最新版号。急着安装 / 升级请带版本号：
+
+- 插件页：粘贴 `dsh-tool-todo-plus@<版本号>`（如 `dsh-tool-todo-plus@0.7.2`）
+- CLI：`dsh plugin --profile <profile名> add dsh-tool-todo-plus@<版本号>`
+
+装完后**完全重启客户端**生效；可在 `~/.dsh/profiles/<profile>/node_modules/dsh-tool-todo-plus/package.json` 里核对 `"version"`。
 
 **会与官方 `todo_write` 冲突吗？**
 

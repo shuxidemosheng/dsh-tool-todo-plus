@@ -341,7 +341,7 @@ function TodoCard(props: { panelPos: { x: number; y: number } }): ReactElement {
   const onHeaderPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: props.panelPos.x, origY: props.panelPos.y }
-    e.currentTarget.setPointerCapture(e.pointerId)
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* 合成事件/指针已释放时可能抛错，拖动仍可工作 */ }
   }
   const onHeaderPointerMove = (e: ReactPointerEvent<HTMLDivElement>): void => {
     const d = dragRef.current
@@ -509,6 +509,9 @@ function TodoOverlay(): ReactElement | null {
   const active = useSyncExternalStore(subscribe, () => conversationActive, () => conversationActive)
   // 订阅 collapsed：宽度随形态即时切换（240 胶囊 / 380 展开）；清单本体由 TodoCard 自行订阅
   const collapsedNow = useSyncExternalStore(subscribe, () => collapsed, () => collapsed)
+  // 订阅 panelPos：拖动时 position 由本组件渲染，不订阅的话拖动了也不重渲染
+  // （0.5.3 collapsed 无订阅是同类错误——store 变了但拥有样式的组件不知道）
+  const posNow = useSyncExternalStore(subscribe, () => panelPos, () => panelPos)
   // 窗口尺寸变化时锚点位置会变，强制重算一次
   const [, resizeTick] = useState(0)
   useEffect(() => {
@@ -520,7 +523,7 @@ function TodoOverlay(): ReactElement | null {
   const width = collapsedNow ? PANEL_WIDTH_COLLAPSED : PANEL_WIDTH_EXPANDED
   // 定位两种模式：自由模式（用户拖过，用记忆坐标并钳制进视口）优先；默认模式
   // 锚定对话内容列右缘（同 ZCode 面板在窗格内的观感；锚点缺失时回退窗口右缘 20px）。
-  const freePos = panelPos ? clampPos(panelPos.x, panelPos.y, width) : null
+  const freePos = posNow ? clampPos(posNow.x, posNow.y, width) : null
   const anchorRight = freePos ? NaN : anchorRightEdge()
   const anchored = !freePos && Number.isFinite(anchorRight)
   const anchoredLeft = anchored

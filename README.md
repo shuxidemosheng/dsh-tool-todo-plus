@@ -28,6 +28,10 @@
 
 <p align="center"><img src="docs/screenshots/panel-capsule.png" width="420" alt="胶囊态"></p>
 
+**面板可拖动 + 双击复位**——按住卡片头部实时拖动，展开态 / 胶囊态下均可；双击头部，面板一步跳回默认锚定位置（实拍 GIF，约 7 秒）：
+
+<p align="center"><img src="docs/screenshots/panel-drag.gif" alt="面板拖动与形态切换实拍"></p>
+
 <details>
 <summary><b>目录</b></summary>
 

@@ -179,9 +179,9 @@ npm 渠道重跑[方式一](#install-npm)的命令（pnpm 会拉取最新发布�
 - **渲染安全**：浮窗全部走 React 文本节点（自动转义），任务内容不会被当作 HTML 执行
 - **参数过滤**：工具入参经 schema（enum + `additionalProperties: false`）与运行时校验双层过滤，只落白名单字段
 - **无 eval 产物**：构建管线内置 [`scripts/disable-eval.mjs`](scripts/disable-eval.mjs)，移除内联 Schemastery 字符串回调的动态执行点（本插件不使用该机制），产物中无任何 `new Function` / `eval`
-- **Mimosa 深度安全扫描通过**：0 发现、0 依赖风险（覆盖完成）
-  - scanId：`scan-2026-10-07T04-13-57.809Z-97ce613379e4`
-  - 封印：`sha256:032632304af5a1efb42a55a2f2113a46cb48bcc1fa5d0e5aee913992476bcd6b`
+- **Mimosa 深度安全扫描**：0 发现、0 依赖风险（静态分析；调用图存在部分覆盖缺口，见扫描报告）
+  - scanId：`scan-2026-10-07T13-46-58.772Z-d0b099ac0c6f`
+  - 封印：`sha256:b93fbbe684ef4da245dd81301530de2d39561d2a6246bd1da792e9d2d43ecc98`
 
 ## 常见问题
 

@@ -1,8 +1,18 @@
+<div align="center">
+
 # dsh-tool-todo-plus
 
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）的任务清单插件——[`@deepseek-ai/dsh-tool-todo`](https://github.com/deepseek-ai/deepseek-harness) 官方 `todo_write` 工具的增强 fork：**优先级标签 + 完整清单渲染 + 会话内浮动任务面板**。
+**DeepSeek Harness 任务清单插件 —— 官方 [`todo_write`](https://github.com/deepseek-ai/deepseek-harness) 的增强 fork**
 
-仓库：`https://github.com/shuxidemosheng/dsh-tool-todo-plus`
+优先级标签 · 完整清单渲染 · 会话内浮动任务面板
+
+[![npm version](https://img.shields.io/npm/v/dsh-tool-todo-plus)](https://www.npmjs.com/package/dsh-tool-todo-plus)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2024-339933)](https://nodejs.org)
+
+[安装](#安装) · [功能](#功能) · [常见问题](#常见问题) · [安全](#安全) · [上游致谢](#上游致谢)
+
+</div>
 
 ## 界面预览
 
@@ -14,7 +24,29 @@
 
 <p align="center"><img src="docs/screenshots/panel-capsule.png" width="420" alt="胶囊态"></p>
 
+<details>
+<summary><b>目录</b></summary>
+
+- [它是什么](#它是什么)
+- [功能](#功能)
+- [安装](#安装)
+  - [方式一：npm 包名安装（最简）](#install-npm)
+  - [方式二：git 直装（始终最新 main）](#install-git)
+  - [方式三：桌面端插件页](#install-desktop-ui)
+  - [方式四：源码构建](#install-source)
+  - [更新到新版](#更新到新版)
+- [配置](#配置)
+- [安全](#安全)
+- [常见问题](#常见问题)
+- [已知限制](#已知限制)
+- [上游致谢](#上游致谢)
+- [许可证](#许可证)
+
+</details>
+
 ## 它是什么
+
+**零网络请求、零运行时 npm 依赖**（依赖仅在构建期），宿主半不触文件系统——安全细节见[文末](#安全)。
 
 一个"模型侧工具 + 用户侧面板"的组合：
 
@@ -22,6 +54,15 @@
 - **用户侧**：模型每次写入清单，会话内自动弹出浮动面板并实时跟随更新；面板是纯展示层，不会无中生有。
 
 ## 功能
+
+**功能速览**：
+
+- 🧩 **优先级标签**：`high` / `medium` / `low`，对齐 ZCode 的 TodoWrite —— [增强工具](#增强工具模型侧)
+- 📋 **完整清单渲染**：工具结果返回完整 markdown 清单（官方版只有一行计数）—— [增强工具](#增强工具模型侧)
+- 🪟 **浮动任务面板**：自动弹出、实时跟随、可拖动带位置记忆、毛玻璃原生外观 —— [浮动任务面板](#浮动任务面板用户侧)
+- ⚡ **当前动作**：两次清单写入之间，实时显示模型此刻执行的工具 —— [浮动任务面板](#浮动任务面板用户侧)
+- 🛟 **轮次间不闪空**：发新消息时保留上一轮清单，淡化并标"上一轮" —— [浮动任务面板](#浮动任务面板用户侧)
+- 🤝 **零冲突共存**：与官方 `todo_write` 并存，会话日志双向兼容 —— [与官方版共存](#与官方版共存)
 
 ### 增强工具（模型侧）
 
@@ -51,6 +92,15 @@
 
 ## 安装
 
+| 方式 | 适合谁 | 特点 |
+|---|---|---|
+| [npm 包名](#install-npm) | 大多数用户（CLI / 桌面端均可） | 最简，可指定版本 |
+| [git 直装](#install-git) | 急用最新版 | 始终拉取 main 最新 |
+| [桌面端插件页](#install-desktop-ui) | 桌面端、不想敲命令行 | 图形界面操作 |
+| [源码构建](#install-source) | 开发者 / 二次开发 | 本地构建 tgz |
+
+<a id="install-npm"></a>
+
 ### 方式一：npm 包名安装（最简）
 
 包已发布到 npm：[`dsh-tool-todo-plus`](https://www.npmjs.com/package/dsh-tool-todo-plus)——安装时只需包名，无需 git 地址，且可指定版本。
@@ -69,7 +119,9 @@ ELECTRON_RUN_AS_NODE=1 "/d/DeepSeek Harness/DeepSeek Harness.exe" --expose-inter
 
 安装后验证版本：`grep '"version"' ~/.dsh/profiles/desktop/node_modules/dsh-tool-todo-plus/package.json`
 
-> 注意：包名安装走 npm registry（国内镜像站通常已同步，偶有几分钟延迟）；急用最新版可走方式二。
+> 注意：包名安装走 npm registry（国内镜像站通常已同步，偶有几分钟延迟）；急用最新版可走[方式二](#install-git)。
+
+<a id="install-git"></a>
 
 ### 方式二：git 直装（始终最新 main）
 
@@ -81,9 +133,13 @@ ELECTRON_RUN_AS_NODE=1 "/d/DeepSeek Harness/DeepSeek Harness.exe" --expose-inter
 
 CLI profile：`dsh plugin --profile <你的profile名> add https://github.com/shuxidemosheng/dsh-tool-todo-plus.git`
 
+<a id="install-desktop-ui"></a>
+
 ### 方式三：桌面端插件页
 
 打开 dsh 桌面端 → 侧边栏「插件」→ 添加插件 → 粘贴仓库地址或包名 → 安装（失败会自动回滚）。同样需要先完全退出应用。
+
+<a id="install-source"></a>
 
 ### 方式四：源码构建
 
@@ -95,7 +151,9 @@ npm pack          # 产出可安装的 tgz
 
 要求：Node.js ≥ 24。
 
-**更新到新版**：npm 渠道重跑方式一的命令（pnpm 会拉取最新发布版）；git 渠道重跑方式二（拉取 main 分支最新提交）。装完重启应用。
+### 更新到新版
+
+npm 渠道重跑[方式一](#install-npm)的命令（pnpm 会拉取最新发布版）；git 渠道重跑[方式二](#install-git)（拉取 main 分支最新提交）。装完重启应用。
 
 ## 配置
 
@@ -105,18 +163,6 @@ npm pack          # 产出可安装的 tgz
 |---|---|---|
 | `allowParallelInProgress` | `false` | 是否允许多个任务同时 `in_progress`。`false` 为单活跃纪律（同 ZCode），多标即拒绝；`true` 适合有并行工作的部署（subagent、后台命令、workflow fan-out） |
 | `toolName` | `'todo_write'` | 注册的工具名。桌面端等使用 agent preset 的部署无法禁用官方 `tool-todo` 行，设为 `'todo_write_plus'`（本仓库默认）可与官方共存 |
-
-## 兼容性说明
-
-- 官方持久化 invariant 只校验 `content`/`status`，不拒绝 `priority` 字段；官方投影 schema 剥离未知键——带 `priority` 的条目在官方组件眼中只是普通条目，双向兼容
-- 投影 key（`todos`）与折叠语义和官方逐字一致，`stateVersion` 保持 2：官方写出的旧 checkpoint 在本插件下照常通过校验
-- 官方在消息区自带一个内联任务面板（由官方客户端渲染，不显示 `priority`）；优先级在工具结果与本插件浮窗中可见
-
-## 已知限制
-
-- 浮窗的"实时写入自动弹出"以会话边界后的 **2 秒静默窗口**区分历史回放与实时写入：若单个会话的历史恢复超过 2 秒，尾部仍可能误弹一次（手动关掉即可）
-- 桌面端 agent preset 声明的官方 `tool-todo` 行不受 profile 补丁控制，因此默认共存而非替换
-- 浮窗不显示在会话界面之外（设计行为）
 
 ## 安全
 
@@ -128,6 +174,37 @@ npm pack          # 产出可安装的 tgz
 - **Mimosa 深度安全扫描通过**：0 发现、0 依赖风险（覆盖完成）
   - scanId：`scan-2026-10-07T04-13-57.809Z-97ce613379e4`
   - 封印：`sha256:032632304af5a1efb42a55a2f2113a46cb48bcc1fa5d0e5aee913992476bcd6b`
+
+## 常见问题
+
+**会与官方 `todo_write` 冲突吗？**
+
+不会。桌面端注册为 `todo_write_plus`，与官方 `todo_write` 并存；工具名万一被占用（例如装了两份本插件），本插件记日志后优雅让位，entry 正常激活，不会导致 agent preset 审计失败。桌面端 agent preset 声明的官方 `tool-todo` 行不受 profile 补丁控制，因此默认共存而非替换；CLI profile 可按 id 禁用官方行后改回原名，见[配置](#配置)。
+
+**官方客户端消息区已经自带一个任务面板，为什么还要这个浮窗？**
+
+官方内联面板由官方客户端渲染，不显示 `priority` 字段；本插件浮窗是完整视图（状态点 / 划线 / 优先级徽章 / 进度计数 / "进行中"标记 / 当前动作 / 上一轮保留），且可拖动。两者可同时使用，互不干扰。
+
+**旧会话日志、官方插件写出的数据能读吗？**
+
+能，双向兼容：官方持久化 invariant 只校验 `content` / `status`，不拒绝 `priority` 字段；官方投影 schema 剥离未知键，带 `priority` 的条目在官方组件眼中只是普通条目；投影 key（`todos`）与折叠语义和官方逐字一致，`stateVersion` 保持 2，官方写出的旧 checkpoint 在本插件下照常通过校验。
+
+**为什么重新进入会话时面板没有自动弹出？**
+
+设计行为：只有模型的**实时写入**才自动弹出；历史回放（重进会话 / 切换会话 / 重启应用）只同步数据、不弹面板——关了就保持关着。边界情况见[已知限制](#已知限制)。
+
+**面板挡住界面内容了？**
+
+按住卡片头部拖到任意位置即可，位置自动记忆（重进会话/重启保持）；双击头部复位到默认锚定位置。
+
+**想让本插件独占 `todo_write` 原名？**
+
+CLI profile 里按 id 禁用官方 `tool-todo` 行后，把 `cordis.patch.yml` 里的 `toolName` 改回 `'todo_write'`，见[配置](#配置)。
+
+## 已知限制
+
+- 浮窗的"实时写入自动弹出"以会话边界后的 **2 秒静默窗口**区分历史回放与实时写入：若单个会话的历史恢复超过 2 秒，尾部仍可能误弹一次（手动关掉即可）
+- 浮窗不显示在会话界面之外（设计行为）
 
 ## 上游致谢
 

@@ -530,16 +530,19 @@ function TodoOverlay(): ReactElement | null {
     ? Math.max(12, Math.min(anchorRight - width, window.innerWidth - width - 12))
     : NaN
   // 实际渲染位置（也是拖动的起始基准）：自由模式 = 钳制后坐标；锚定 = 计算结果；回退 = 窗口右缘
+  // 默认顶部 100px：给窗口顶部的应用工具栏（目录选择器/更多/侧栏开关一带）留出
+  // 完整空间——68px 在桌面端会遮住工具栏下半（用户反馈），100px 两端都不遮挡。
+  const defaultTop = 100
   const effPos = freePos
     ? { x: freePos.x, y: freePos.y }
     : anchored
-      ? { x: anchoredLeft, y: 68 }
-      : { x: window.innerWidth - width - 20, y: 68 }
+      ? { x: anchoredLeft, y: defaultTop }
+      : { x: window.innerWidth - width - 20, y: defaultTop }
   return (
     <div style={{
       position: 'absolute', top: effPos.y, width,
       left: effPos.x,
-      maxHeight: 'calc(100vh - 140px)', overflowY: 'auto',
+      maxHeight: 'calc(100vh - 180px)', overflowY: 'auto',
       // 浮层材质复刻 dsh 原生菜单（实测其悬浮面板配方）：
       // 半透明表面 + blur(40px) 毛玻璃；描边不是 border，而是 boxShadow 里的
       // 0.5px 发丝环（暗色主题为白 16%）+ 两层 4%~5% 超柔投影；圆角取

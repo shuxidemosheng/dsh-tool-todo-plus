@@ -1,6 +1,23 @@
 {
   "name": "dsh-tool-todo-plus",
   "description": "todo_write tool with priority tags, markdown checklist rendering and a floating task panel — drop-in enhanced fork of @deepseek-ai/dsh-tool-todo",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "plugin",
+    "todo",
+    "agent",
+    "task-list"
+  ],
+  "homepage": "https://github.com/shuxidemosheng/dsh-tool-todo-plus#readme",
+  "bugs": {
+    "url": "https://github.com/shuxidemosheng/dsh-tool-todo-plus/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shuxidemosheng/dsh-tool-todo-plus.git"
+  },
   "version": "0.7.2",
   "license": "MIT",
   "type": "module",

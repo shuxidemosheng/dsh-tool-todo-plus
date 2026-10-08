@@ -180,8 +180,8 @@ npm 渠道重跑[方式一](#install-npm)的命令（pnpm 会拉取最新发布�
 - **参数过滤**：工具入参经 schema（enum + `additionalProperties: false`）与运行时校验双层过滤，只落白名单字段
 - **无 eval 产物**：构建管线内置 [`scripts/disable-eval.mjs`](scripts/disable-eval.mjs)，移除内联 Schemastery 字符串回调的动态执行点（本插件不使用该机制），产物中无任何 `new Function` / `eval`
 - **Mimosa 深度安全扫描**：0 发现、0 依赖风险（静态分析；调用图存在部分覆盖缺口，见扫描报告）
-  - scanId：`scan-2026-10-07T13-46-58.772Z-d0b099ac0c6f`
-  - 封印：`sha256:b93fbbe684ef4da245dd81301530de2d39561d2a6246bd1da792e9d2d43ecc98`
+  - scanId：`scan-2026-10-08T10-01-32.375Z-7ca39b142c9b`
+  - 封印：`sha256:57837a1421f4fceb3cbf66d677ece962e96b6d2e5c05638c0732ebce1281b837`
 
 ## 常见问题
 

@@ -18,7 +18,8 @@ export declare const inject: string[];
 export interface Config {
     /**
      * 是否允许多个任务同时处于 in_progress。
-     * false（默认）：单活跃纪律，同一时刻至多一个在做，多标即拒绝——与 ZCode TodoWrite 一致。
+     * false（默认）：单活跃纪律，同一时刻至多一个在做；模型多标时只保留最靠前的一个，
+     * 其余自动降级为 pending（0.7.3 起不再拒绝写入——拒绝会让面板停在旧状态）。
      * true：适合有并行工作的部署（subagent、后台命令、workflow fan-out）。
      */
     allowParallelInProgress?: boolean;

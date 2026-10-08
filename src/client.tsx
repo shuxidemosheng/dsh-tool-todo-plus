@@ -453,8 +453,10 @@ function TodoCard(props: { panelPos: { x: number; y: number } }): ReactElement {
       {header}
       {actionLine}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8, opacity: stale ? 0.6 : undefined }}>
-        {items.map(todo => (
-          <li key={todo.content} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, lineHeight: 1.5 }}>
+        {items.map((todo, index) => (
+          // key 带序号：模型有时会提交两条文字完全相同的待办（服务端会加后缀去重，
+          // 但历史日志里可能已有重复内容），只按 content 做 key 会让 React 合并/漏渲染条目。
+          <li key={`${index}:${todo.content}`} style={{ display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 13, lineHeight: 1.5 }}>
             <span aria-hidden style={{
               flex: 'none', width: 8, height: 8, borderRadius: '50%',
               background: dotColor(todo.status), marginTop: 5,

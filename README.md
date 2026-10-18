@@ -180,10 +180,17 @@ npm 渠道重跑[方式一](#install-npm)的命令（pnpm 会拉取最新发布�
 - **参数过滤**：工具入参经 schema（enum + `additionalProperties: false`）与运行时校验双层过滤，只落白名单字段
 - **无 eval 产物**：构建管线内置 [`scripts/disable-eval.mjs`](scripts/disable-eval.mjs)，移除内联 Schemastery 字符串回调的动态执行点（本插件不使用该机制），产物中无任何 `new Function` / `eval`
 - **Mimosa 深度安全扫描**：0 发现、0 依赖风险（静态分析；调用图存在部分覆盖缺口，见扫描报告）
-  - scanId：`scan-2026-10-08T10-01-32.375Z-7ca39b142c9b`
-  - 封印：`sha256:57837a1421f4fceb3cbf66d677ece962e96b6d2e5c05638c0732ebce1281b837`
+  - scanId：`scan-2026-10-18T08-35-10.144Z-58b21e4f991d`
+  - 封印：`sha256:345a43ef70218ae27036b090bf3ea0025b36d02b11aa8e652f3e14f822290c34`
 
 ## 常见问题
+
+**dsh 升级后插件加载失败（提示 incompatible / 插件被禁用）？**
+
+dsh **0.2.1-rc.2 起**会在启动时检查插件的兼容性声明：优先读 `engines.dsh`，没有它才逐个检查 `peerDependencies` 里的 `@deepseek-ai/dsh-*` 版本范围；运行时版本不满足就拒绝加载。0.7.3 及更早把 peer 精确锁死在 `0.2.0-rc.2`，所以在 `0.2.1-rc.2` 上会被判为不兼容。
+
+- **升级到 0.7.4**：改用 `engines.dsh: ">=0.2.0-rc.2 <0.3.0"` 声明兼容范围，`0.2.x` 的 rc 升级不再被卡
+- 暂时不能升级的话：在插件管理器里为当前版本授予 **exact-version 豁免**（或 `dsh plugin allow-version`），这是 0.2.1-rc.2 新增的显式放行机制
 
 **安装 / 升级后版本没变（或装到旧版）？**
 
